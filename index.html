@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif+Bengali:wght@600;700&display=swap" rel="stylesheet">
     
+    <!-- Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
@@ -87,9 +88,15 @@
         
         /* Mobile layout transitions */
         .bottom-sheet { transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        
+        /* Mobile Viewport height fix for older browsers */
+        .h-screen-fix {
+            height: 100vh;
+            height: 100dvh;
+        }
     </style>
 </head>
-<body class="flex flex-col h-screen w-full">
+<body class="flex flex-col h-screen-fix w-full">
 
     <header class="bg-gradient-to-b from-puja-red to-puja-darkRed text-white p-4 shadow-xl z-20 flex-shrink-0 relative overflow-hidden">
         <div class="absolute inset-0 opacity-[0.05]" style="background-image: radial-gradient(#FBBF24 2px, transparent 2px); background-size: 20px 20px;"></div>
@@ -98,7 +105,7 @@
                 <h1 class="text-2xl md:text-3xl font-bold font-bengali tracking-wide flex items-center gap-2">
                     <span class="text-puja-gold drop-shadow-md text-3xl leading-none">🪷</span> মা আসছেন
                 </h1>
-                <p class="text-xs md:text-sm text-yellow-100 opacity-90 mt-1 uppercase tracking-widest font-semibold">Durga Puja Explorer</p>
+                <p class="text-xs md:text-sm text-yellow-100 opacity-90 mt-1 uppercase tracking-widest font-semibold">পুজোর পথে, আমদের সাথে</p>
             </div>
             
             <div class="flex gap-3">
@@ -144,7 +151,9 @@
             </div>
         </div>
 
-        <div id="sidebar" class="bottom-sheet absolute md:relative bottom-0 left-0 right-0 z-30 bg-white md:bg-white/95 md:backdrop-blur-xl md:rounded-3xl rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.15)] md:shadow-2xl flex flex-col h-[75vh] md:h-full w-full md:w-[420px] border border-gray-100 md:border-white/40 translate-y-[calc(100%-48px)] md:translate-y-0">
+        <!-- Sidebar / Bottom Sheet -->
+        <!-- Added explicit heights to prevent buttons from hiding on mobile -->
+        <div id="sidebar" class="bottom-sheet absolute md:relative bottom-0 left-0 right-0 z-30 bg-white md:bg-white/95 md:backdrop-blur-xl md:rounded-3xl rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.15)] md:shadow-2xl flex flex-col h-[75vh] h-[75dvh] md:h-full w-full md:w-[420px] border border-gray-100 md:border-white/40 translate-y-[calc(100%-48px)] md:translate-y-0">
             
             <!-- Drag handle (Mobile) -->
             <div id="dragHandle" class="md:hidden w-full flex justify-center pt-4 pb-3 cursor-pointer rounded-t-3xl border-b border-gray-100 bg-white/50 backdrop-blur-sm z-10 relative">
@@ -169,12 +178,13 @@
                             <svg class="w-5 h-5 absolute left-4 top-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                         </div>
 
-                        <div id="pandal-list" class="flex-1 overflow-y-auto pr-2 space-y-3 pb-24 md:pb-24 custom-scrollbar relative z-10">
+                        <!-- Heavy bottom padding ensures the last item clears the floating action button area -->
+                        <div id="pandal-list" class="flex-1 overflow-y-auto pr-2 space-y-3 pb-32 custom-scrollbar relative z-10">
                             <!-- JS injected pandal cards go here -->
                         </div>
 
-                        <!-- Sticky Action Bar -->
-                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-10 pb-2 z-20">
+                        <!-- Sticky Action Bar with added padding for mobile safe zones -->
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-12 pb-6 md:pb-2 z-20">
                             <button id="planRouteBtn" disabled class="w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-xl transition-all bg-gray-200 text-gray-400 cursor-not-allowed">
                                 <svg id="btn-icon-nav" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
                                 <svg id="btn-icon-load" class="w-5 h-5 animate-spin hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
@@ -197,7 +207,7 @@
                             </button>
                         </div>
                         
-                        <div class="bg-gradient-to-br from-puja-cream to-white p-5 rounded-2xl border border-puja-gold/40 mb-5 flex justify-between items-center shadow-md relative overflow-hidden">
+                        <div class="bg-gradient-to-br from-puja-cream to-white p-5 rounded-2xl border border-puja-gold/40 mb-5 flex justify-between items-center shadow-md relative overflow-hidden shrink-0">
                             <div class="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-puja-gold/10 to-transparent"></div>
                             <div class="relative z-10">
                                 <p class="text-xs text-puja-darkGold font-bold uppercase tracking-widest mb-1">Total Estimated</p>
@@ -211,12 +221,12 @@
                             </div>
                         </div>
 
-                        <div class="text-xs text-gray-600 mb-4 flex gap-2 items-start bg-blue-50/80 p-3 rounded-xl border border-blue-100">
+                        <div class="text-xs text-gray-600 mb-4 flex gap-2 items-start bg-blue-50/80 p-3 rounded-xl border border-blue-100 shrink-0">
                             <svg class="w-4 h-4 shrink-0 mt-0.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             <span class="leading-relaxed"><span class="font-bold text-blue-700">AI Optimized:</span> Route calculated using spatial proximity to minimize travel time.</span>
                         </div>
 
-                        <div id="route-steps" class="flex-1 overflow-y-auto pr-2 space-y-0 relative pb-4 custom-scrollbar">
+                        <div id="route-steps" class="flex-1 overflow-y-auto pr-2 space-y-0 relative pb-10 custom-scrollbar">
                             <!-- Steps injected here -->
                         </div>
                     </div>
@@ -240,7 +250,6 @@
         const SUPABASE_ANON_KEY = 'sb_publishable_BfHQCR5x4NzHqimkCJTmOQ_36TccGzw'; 
 
         // --- DATA ---
-        // These act as offline fallbacks if your database is empty
         let PANDALS = [
             { id: "pandal-1", name: "Aneek sangha", lat: 24.9999125, lng: 88.1387031, description: "Beautiful traditional pandal in Malda." },
             { id: "pandal-2", name: "Pandal Name 2", lat: 25.0006875, lng: 88.1343125, description: "Popular local gathering spot." }
@@ -254,11 +263,15 @@
 
         // Initialize Supabase Client
         let supabaseClient = null;
-        if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        try {
+            if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
+        } catch (e) {
+            console.error("Supabase Init Error:", e);
         }
 
-        // Fetch live data from Supabase database
+        // Fetch live data from Supabase database safely
         async function loadLiveData() {
             if (!supabaseClient) return;
             
@@ -266,14 +279,14 @@
                 // Fetch Pandals
                 const { data: pandalData, error: pandalError } = await supabaseClient.from('pandals').select('*');
                 if (pandalError) throw pandalError;
-                if (pandalData && pandalData.length > 0) PANDALS = pandalData;
+                if (Array.isArray(pandalData) && pandalData.length > 0) PANDALS = pandalData;
 
                 // Fetch Washrooms
                 const { data: washroomData, error: washroomError } = await supabaseClient.from('washrooms').select('*');
                 if (washroomError) throw washroomError;
-                if (washroomData && washroomData.length > 0) WASHROOMS = washroomData;
+                if (Array.isArray(washroomData) && washroomData.length > 0) WASHROOMS = washroomData;
                 
-                if (pandalData.length > 0 || washroomData.length > 0) {
+                if (PANDALS.length > 0 || WASHROOMS.length > 0) {
                     showToast("Live map data synced automatically!", "info");
                 }
             } catch (err) {
@@ -399,7 +412,7 @@
                     const dom = createCustomMarkerDOM('🪷', '46px');
                     const marker = new MarkerLib.AdvancedMarkerElement({
                         map: state.showPandals ? map : null,
-                        position: { lat: pandal.lat, lng: pandal.lng },
+                        position: { lat: parseFloat(pandal.lat), lng: parseFloat(pandal.lng) },
                         content: dom,
                         title: pandal.name,
                     });
@@ -415,7 +428,7 @@
                                 </button>
                             </div>
                         `);
-                        infoWindow.open(map, marker);
+                        infoWindow.open({ anchor: marker, map: map });
                         
                         setTimeout(() => {
                             const btn = document.getElementById(`iw-btn-${pandal.id}`);
@@ -442,13 +455,13 @@
                     const dom = createCustomMarkerDOM('🚽', '34px');
                     const marker = new MarkerLib.AdvancedMarkerElement({
                         map: state.showWashrooms ? map : null,
-                        position: { lat: w.lat, lng: w.lng },
+                        position: { lat: parseFloat(w.lat), lng: parseFloat(w.lng) },
                         content: dom,
                         title: w.name,
                     });
                     dom.addEventListener('click', () => {
                         infoWindow.setContent(`<div style="padding:8px;font-weight:600;color:#1e40af;font-family:'Inter',sans-serif;">🚽 ${w.name}</div>`);
-                        infoWindow.open(map, marker);
+                        infoWindow.open({ anchor: marker, map: map });
                     });
                     markers.washrooms[w.id] = { marker, dom };
                 } else {
@@ -500,7 +513,7 @@
                 state.selectedPandals.add(id);
                 const p = PANDALS.find(x => x.id === id);
                 if (p && map && window.innerWidth > 768) {
-                    map.panTo({lat: p.lat, lng: p.lng});
+                    map.panTo({lat: parseFloat(p.lat), lng: parseFloat(p.lng)});
                 }
             }
             updateMarkers();
@@ -539,7 +552,7 @@
             const optimized = optimizeRouteOrder(state.userLocation, selectedData);
 
             const waypoints = optimized.slice(0, -1).map(p => ({
-                location: { lat: p.lat, lng: p.lng },
+                location: { lat: parseFloat(p.lat), lng: parseFloat(p.lng) },
                 stopover: true
             }));
             const dest = optimized[optimized.length - 1];
@@ -547,7 +560,7 @@
             try {
                 const routeParams = {
                     origin: state.userLocation,
-                    destination: { lat: dest.lat, lng: dest.lng },
+                    destination: { lat: parseFloat(dest.lat), lng: parseFloat(dest.lng) },
                     waypoints: waypoints,
                     optimizeWaypoints: false,
                     travelMode: google.maps.TravelMode.DRIVING,
@@ -599,8 +612,8 @@
                 
                 // ULTIMATE FALLBACK: Draw direct line if even walking fails
                 if(window.fallbackPolyline) window.fallbackPolyline.setMap(null);
-                const path = [state.userLocation, ...optimized.map(p => ({lat: p.lat, lng: p.lng}))];
-                window.fallbackPolyline = new CoreLib.Polyline({
+                const path = [state.userLocation, ...optimized.map(p => ({lat: parseFloat(p.lat), lng: parseFloat(p.lng)}))];
+                window.fallbackPolyline = new google.maps.Polyline({
                     path: path,
                     geodesic: true,
                     strokeColor: '#EA580C',
@@ -730,7 +743,7 @@
                 `;
             });
 
-            // Added Real-Time Navigation Launcher
+            // Action Buttons
             html += `
                 <div class="mt-6 pt-4 border-t border-gray-100 flex flex-col gap-3">
                     <button onclick="startLiveNavigation()" class="w-full py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2">
