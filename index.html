@@ -532,23 +532,6 @@
             updateBottomButton();
         }
 
-        function optimizeRouteOrder(startLoc, pandalDataList) {
-            let unvisited = [...pandalDataList];
-            let curr = startLoc;
-            let ordered = [];
-            while(unvisited.length > 0) {
-                let nearestIdx = 0, minDist = Infinity;
-                for(let i=0; i<unvisited.length; i++) {
-                    const d = calcDist(curr.lat, curr.lng, unvisited[i].lat, unvisited[i].lng);
-                    if(d < minDist) { minDist = d; nearestIdx = i; }
-                }
-                const next = unvisited.splice(nearestIdx, 1)[0];
-                ordered.push(next);
-                curr = { lat: next.lat, lng: next.lng };
-            }
-            return ordered;
-        }
-
         async function planRoute() {
             if (!state.userLocation) {
                 showToast("Please allow location access to plan a route from your spot.", "error");
@@ -560,20 +543,28 @@
             setLoadingState(true);
 
             const selectedData = PANDALS.filter(p => state.selectedPandals.has(p.id));
-            const optimized = optimizeRouteOrder(state.userLocation, selectedData);
-
-            const waypoints = optimized.slice(0, -1).map(p => ({
+            
+            // Pick the furthest pandal as the final destination. 
+            // We pass everything in between to Google's AI to optimize based on actual roads.
+            let dest = selectedData[0];
+            let maxDist = -1;
+            selectedData.forEach(p => {
+                const d = calcDist(state.userLocation.lat, state.userLocation.lng, p.lat, p.lng);
+                if (d > maxDist) { maxDist = d; dest = p; }
+            });
+            
+            const waypointsData = selectedData.filter(p => p.id !== dest.id);
+            const waypoints = waypointsData.map(p => ({
                 location: { lat: p.lat, lng: p.lng },
                 stopover: true
             }));
-            const dest = optimized[optimized.length - 1];
 
             try {
                 const routeParams = {
                     origin: state.userLocation,
                     destination: { lat: dest.lat, lng: dest.lng },
                     waypoints: waypoints,
-                    optimizeWaypoints: false,
+                    optimizeWaypoints: true, // Google's powerful road-network TSP AI
                     travelMode: google.maps.TravelMode.DRIVING,
                 };
 
@@ -595,7 +586,7 @@
                                 else reject(status);
                             });
                         });
-                        showToast("Roads unavailable nearby, showing walking route instead.", "info");
+                        showToast("Driving roads unavailable nearby, showing optimal walking route.", "info");
                     } else {
                         throw driveErr;
                     }
@@ -604,14 +595,26 @@
                 if(window.fallbackPolyline) window.fallbackPolyline.setMap(null);
                 directionsRenderer.setDirections(res);
                 
+                const route = res.routes[0];
                 let dist = 0, time = 0;
-                res.routes[0].legs.forEach(l => { dist += l.distance.value; time += l.duration.value; });
+                route.legs.forEach(l => { dist += l.distance.value; time += l.duration.value; });
+
+                // Re-order our UI sequence based on Google's road-optimized order
+                const optimizedSequence = [];
+                if (route.waypoint_order && route.waypoint_order.length > 0) {
+                    route.waypoint_order.forEach(idx => {
+                        optimizedSequence.push(waypointsData[idx]);
+                    });
+                } else {
+                    optimizedSequence.push(...waypointsData);
+                }
+                optimizedSequence.push(dest);
 
                 state.routeInfo = {
-                    sequence: optimized,
+                    sequence: optimizedSequence,
                     distance: (dist/1000).toFixed(1) + ' km',
                     duration: Math.round(time/60) + ' mins',
-                    legs: res.routes[0].legs
+                    legs: route.legs
                 };
 
                 renderRouteSummary();
@@ -623,7 +626,10 @@
                 
                 // ULTIMATE FALLBACK: Draw direct line if even walking fails
                 if(window.fallbackPolyline) window.fallbackPolyline.setMap(null);
-                const path = [state.userLocation, ...optimized.map(p => ({lat: p.lat, lng: p.lng}))];
+                
+                // Simple straight line sequence
+                let seq = [...selectedData];
+                const path = [state.userLocation, ...seq.map(p => ({lat: p.lat, lng: p.lng}))];
                 window.fallbackPolyline = new CoreLib.Polyline({
                     path: path,
                     geodesic: true,
@@ -639,17 +645,17 @@
                 }
 
                 state.routeInfo = {
-                    sequence: optimized,
+                    sequence: seq,
                     distance: totalDist.toFixed(1) + ' km (Direct)',
                     duration: Math.round(totalDist * 12) + ' mins', 
-                    legs: optimized.map(() => null)
+                    legs: seq.map(() => null)
                 };
 
                 renderRouteSummary();
                 showRouteView();
                 if(window.innerWidth < 768) toggleMobileSheet(false);
                 
-                showToast("Road route unavailable. Showing direct path.", "info");
+                showToast("You are too far from the locations for road routing. Showing direct path.", "info");
             } finally {
                 setLoadingState(false);
             }
@@ -687,10 +693,10 @@
             navOverlay.classList.remove('hidden');
             navOverlay.classList.add('flex');
 
-            // 2. Zoom in and tilt map for a "driving/walking" perspective
+            // 2. Zoom in tighter and tilt map for a driving perspective
             if (map) {
-                map.setZoom(18);
-                map.setTilt(60); 
+                map.setZoom(19);
+                map.setTilt(65); 
                 map.panTo(state.userLocation);
             }
 
@@ -707,11 +713,14 @@
                         // Automatically center the map on the user as they move
                         if (map && state.isNavigating) {
                             map.panTo(state.userLocation);
+                            // Rotate the map if the device provides heading (direction of travel)
+                            if (pos.coords.heading !== null && !isNaN(pos.coords.heading)) {
+                                map.setHeading(pos.coords.heading);
+                            }
                         }
                     },
                     (err) => {
                         console.warn("GPS tracking error:", err);
-                        showToast("GPS signal lost or weak.", "error");
                     },
                     { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
                 );
@@ -741,6 +750,7 @@
             // 3. Reset map view to normal overview
             if (map) {
                 map.setTilt(0);
+                map.setHeading(0); // Reset rotation
                 map.setZoom(14);
                 if (state.userLocation) map.panTo(state.userLocation);
             }
