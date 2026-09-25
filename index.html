@@ -125,7 +125,7 @@
             </div>
 
             <!-- Floating Map Controls -->
-            <div id="floating-controls" class="absolute top-4 right-4 z-20 flex flex-col gap-3 transition-opacity duration-300">
+            <div class="absolute top-4 right-4 z-20 flex flex-col gap-3">
                 <div class="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden border border-gray-200/50 flex flex-col p-1.5">
                     <button id="togglePandals" class="p-2.5 rounded-xl transition-all duration-300 flex items-center justify-center relative group bg-red-50/80 text-red-600 shadow-sm" title="Toggle Pandals">
                         <span class="text-2xl leading-none drop-shadow-sm">🪷</span>
@@ -216,7 +216,7 @@
                             <span class="leading-relaxed"><span class="font-bold text-blue-700">AI Optimized:</span> Route calculated using spatial proximity to minimize travel time.</span>
                         </div>
 
-                        <div id="route-steps" class="flex-1 overflow-y-auto pr-2 space-y-0 relative pb-4 custom-scrollbar">
+                        <div id="route-steps" class="flex-1 overflow-y-auto pr-2 space-y-0 relative pb-20">
                             <!-- Steps injected here -->
                         </div>
                     </div>
@@ -224,28 +224,6 @@
             </div>
         </div>
     </main>
-
-    <!-- Native Live Navigation Overlay -->
-    <div id="nav-overlay" class="fixed inset-0 z-40 pointer-events-none hidden flex-col justify-between transition-opacity duration-300">
-        <!-- Top Banner -->
-        <div class="pointer-events-auto bg-green-600/95 backdrop-blur-md text-white p-4 md:p-5 m-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-green-500 max-w-2xl md:mx-auto w-[calc(100%-2rem)]">
-            <div class="animate-pulse bg-white/20 p-3 rounded-full shrink-0">
-                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-            </div>
-            <div class="flex-1">
-                <div class="text-xs font-bold text-green-200 uppercase tracking-wider mb-0.5">Live Navigation Active</div>
-                <div id="nav-instruction" class="text-base md:text-lg font-bold leading-tight">Follow the route highlighted on the map</div>
-            </div>
-        </div>
-
-        <!-- Bottom Actions -->
-        <div class="pointer-events-auto p-6 flex justify-center mb-4 md:mb-8">
-            <button onclick="stopLiveNavigation()" class="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-2xl font-bold shadow-2xl flex items-center gap-3 transition-all transform hover:scale-105 border border-red-500">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                End Navigation
-            </button>
-        </div>
-    </div>
 
     <div id="toast-container" class="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2 transition-all"></div>
 
@@ -313,15 +291,40 @@
             userLocation: null,
             routeInfo: null,
             isPlanningRoute: false,
-            isMobileSheetOpen: false,
-            watchId: null,
-            isNavigating: false
+            isMobileSheetOpen: false
         };
 
         // --- GOOGLE MAPS OBJECTS ---
         let map, directionsService, directionsRenderer, infoWindow;
         let markers = { pandals: {}, washrooms: {}, user: null };
         let MarkerLib, CoreLib;
+
+        // --- DOM ELEMENTS ---
+        const els = {
+            map: document.getElementById('map'),
+            mapLoading: document.getElementById('map-loading'),
+            pandalList: document.getElementById('pandal-list'),
+            searchInput: document.getElementById('searchInput'),
+            planRouteBtn: document.getElementById('planRouteBtn'),
+            planRouteText: document.getElementById('planRouteText'),
+            btnIconNav: document.getElementById('btn-icon-nav'),
+            btnIconLoad: document.getElementById('btn-icon-load'),
+            togglePandals: document.getElementById('togglePandals'),
+            toggleWashrooms: document.getElementById('toggleWashrooms'),
+            locateUser: document.getElementById('locateUser'),
+            sidebar: document.getElementById('sidebar'),
+            dragHandle: document.getElementById('dragHandle'),
+            mobileToggleBtn: document.getElementById('mobileToggleBtn'),
+            iconList: document.getElementById('icon-list'),
+            iconMap: document.getElementById('icon-map'),
+            listView: document.getElementById('list-view'),
+            routeView: document.getElementById('route-view'),
+            closeRouteBtn: document.getElementById('closeRouteBtn'),
+            routeSteps: document.getElementById('route-steps'),
+            routeDuration: document.getElementById('routeDuration'),
+            routeDistance: document.getElementById('routeDistance'),
+            toastContainer: document.getElementById('toast-container'),
+        };
 
         // --- UTILITIES ---
         function showToast(message, type = 'info') {
@@ -330,7 +333,7 @@
             toast.className = `px-6 py-3 rounded-xl border font-medium text-sm transition-all duration-300 transform translate-y-[-100%] opacity-0 flex items-center gap-3 z-50 ${colors}`;
             toast.innerHTML = type === 'error' ? `<span>⚠️</span> ${message}` : `<span>ℹ️</span> ${message}`;
             
-            document.getElementById('toast-container').appendChild(toast);
+            els.toastContainer.appendChild(toast);
             
             requestAnimationFrame(() => {
                 toast.style.transform = 'translateY(0)';
@@ -361,7 +364,7 @@
                 MarkerLib = await google.maps.importLibrary("marker");
                 const RoutesLib = await google.maps.importLibrary("routes");
 
-                map = new CoreLib.Map(document.getElementById('map'), {
+                map = new CoreLib.Map(els.map, {
                     center: DEFAULT_CENTER,
                     zoom: 12.5,
                     mapId: "DEMO_MAP_ID",
@@ -386,8 +389,8 @@
 
                 infoWindow = new CoreLib.InfoWindow({ minWidth: 220 });
 
-                document.getElementById('map-loading').style.opacity = '0';
-                setTimeout(() => document.getElementById('map-loading').style.display = 'none', 500);
+                els.mapLoading.style.opacity = '0';
+                setTimeout(() => els.mapLoading.style.display = 'none', 500);
 
                 updateMarkers();
                 renderPandalList();
@@ -532,6 +535,23 @@
             updateBottomButton();
         }
 
+        function optimizeRouteOrder(startLoc, pandalDataList) {
+            let unvisited = [...pandalDataList];
+            let curr = startLoc;
+            let ordered = [];
+            while(unvisited.length > 0) {
+                let nearestIdx = 0, minDist = Infinity;
+                for(let i=0; i<unvisited.length; i++) {
+                    const d = calcDist(curr.lat, curr.lng, unvisited[i].lat, unvisited[i].lng);
+                    if(d < minDist) { minDist = d; nearestIdx = i; }
+                }
+                const next = unvisited.splice(nearestIdx, 1)[0];
+                ordered.push(next);
+                curr = { lat: next.lat, lng: next.lng };
+            }
+            return ordered;
+        }
+
         async function planRoute() {
             if (!state.userLocation) {
                 showToast("Please allow location access to plan a route from your spot.", "error");
@@ -543,119 +563,48 @@
             setLoadingState(true);
 
             const selectedData = PANDALS.filter(p => state.selectedPandals.has(p.id));
-            
-            // Pick the furthest pandal as the final destination. 
-            // We pass everything in between to Google's AI to optimize based on actual roads.
-            let dest = selectedData[0];
-            let maxDist = -1;
-            selectedData.forEach(p => {
-                const d = calcDist(state.userLocation.lat, state.userLocation.lng, p.lat, p.lng);
-                if (d > maxDist) { maxDist = d; dest = p; }
-            });
-            
-            const waypointsData = selectedData.filter(p => p.id !== dest.id);
-            const waypoints = waypointsData.map(p => ({
-                location: { lat: p.lat, lng: p.lng },
+            const optimized = optimizeRouteOrder(state.userLocation, selectedData);
+
+            const waypoints = optimized.slice(0, -1).map(p => ({
+                location: new CoreLib.LatLng(p.lat, p.lng),
                 stopover: true
             }));
+            const dest = optimized[optimized.length - 1];
 
             try {
-                const routeParams = {
-                    origin: state.userLocation,
-                    destination: { lat: dest.lat, lng: dest.lng },
-                    waypoints: waypoints,
-                    optimizeWaypoints: true, // Google's powerful road-network TSP AI
-                    travelMode: google.maps.TravelMode.DRIVING,
-                };
-
-                let res;
-                try {
-                    res = await new Promise((resolve, reject) => {
-                        directionsService.route(routeParams, (result, status) => {
-                            if (status === 'OK') resolve(result);
-                            else reject(status);
-                        });
+                const res = await new Promise((resolve, reject) => {
+                    directionsService.route({
+                        origin: new CoreLib.LatLng(state.userLocation.lat, state.userLocation.lng),
+                        destination: new CoreLib.LatLng(dest.lat, dest.lng),
+                        waypoints: waypoints,
+                        optimizeWaypoints: false,
+                        travelMode: google.maps.TravelMode.DRIVING,
+                    }, (result, status) => {
+                        if (status === 'OK') resolve(result);
+                        else reject(status);
                     });
-                } catch (driveErr) {
-                    // Fallback to walking if driving road isn't found nearby
-                    if (driveErr === 'ZERO_RESULTS') {
-                        routeParams.travelMode = google.maps.TravelMode.WALKING;
-                        res = await new Promise((resolve, reject) => {
-                            directionsService.route(routeParams, (result, status) => {
-                                if (status === 'OK') resolve(result);
-                                else reject(status);
-                            });
-                        });
-                        showToast("Driving roads unavailable nearby, showing optimal walking route.", "info");
-                    } else {
-                        throw driveErr;
-                    }
-                }
+                });
 
-                if(window.fallbackPolyline) window.fallbackPolyline.setMap(null);
                 directionsRenderer.setDirections(res);
                 
-                const route = res.routes[0];
                 let dist = 0, time = 0;
-                route.legs.forEach(l => { dist += l.distance.value; time += l.duration.value; });
-
-                // Re-order our UI sequence based on Google's road-optimized order
-                const optimizedSequence = [];
-                if (route.waypoint_order && route.waypoint_order.length > 0) {
-                    route.waypoint_order.forEach(idx => {
-                        optimizedSequence.push(waypointsData[idx]);
-                    });
-                } else {
-                    optimizedSequence.push(...waypointsData);
-                }
-                optimizedSequence.push(dest);
+                res.routes[0].legs.forEach(l => { dist += l.distance.value; time += l.duration.value; });
 
                 state.routeInfo = {
-                    sequence: optimizedSequence,
+                    sequence: optimized,
                     distance: (dist/1000).toFixed(1) + ' km',
                     duration: Math.round(time/60) + ' mins',
-                    legs: route.legs
+                    legs: res.routes[0].legs
                 };
 
                 renderRouteSummary();
                 showRouteView();
+                
                 if(window.innerWidth < 768) toggleMobileSheet(false);
 
             } catch (err) {
-                console.error("Routing Failed completely:", err);
-                
-                // ULTIMATE FALLBACK: Draw direct line if even walking fails
-                if(window.fallbackPolyline) window.fallbackPolyline.setMap(null);
-                
-                // Simple straight line sequence
-                let seq = [...selectedData];
-                const path = [state.userLocation, ...seq.map(p => ({lat: p.lat, lng: p.lng}))];
-                window.fallbackPolyline = new CoreLib.Polyline({
-                    path: path,
-                    geodesic: true,
-                    strokeColor: '#EA580C',
-                    strokeOpacity: 0.8,
-                    strokeWeight: 6,
-                    map: map
-                });
-
-                let totalDist = 0;
-                for(let i=0; i<path.length-1; i++) {
-                    totalDist += calcDist(path[i].lat, path[i].lng, path[i+1].lat, path[i+1].lng);
-                }
-
-                state.routeInfo = {
-                    sequence: seq,
-                    distance: totalDist.toFixed(1) + ' km (Direct)',
-                    duration: Math.round(totalDist * 12) + ' mins', 
-                    legs: seq.map(() => null)
-                };
-
-                renderRouteSummary();
-                showRouteView();
-                if(window.innerWidth < 768) toggleMobileSheet(false);
-                
-                showToast("You are too far from the locations for road routing. Showing direct path.", "info");
+                console.error(err);
+                showToast("Could not calculate road route. Check your connection.", "error");
             } finally {
                 setLoadingState(false);
             }
@@ -663,8 +612,6 @@
 
         function clearRoute() {
             if (directionsRenderer) directionsRenderer.setDirections({routes: []});
-            if (window.fallbackPolyline) window.fallbackPolyline.setMap(null);
-            
             state.routeInfo = null;
             state.selectedPandals.clear();
             updateMarkers();
@@ -674,99 +621,19 @@
             if(map && state.userLocation) {
                 map.panTo(state.userLocation);
                 map.setZoom(13);
-                map.setTilt(0); // Reset tilt if returning from navigation
             }
         }
-
-        // --- IN-APP REAL-TIME NAVIGATION LOGIC ---
-        window.startLiveNavigation = function() {
-            if (!state.routeInfo || !state.userLocation) return;
-            
-            state.isNavigating = true;
-
-            // 1. Update UI for immersive navigation mode
-            document.getElementById('sidebar').style.display = 'none';
-            document.getElementById('floating-controls').style.opacity = '0';
-            setTimeout(() => { document.getElementById('floating-controls').style.display = 'none'; }, 300);
-            
-            const navOverlay = document.getElementById('nav-overlay');
-            navOverlay.classList.remove('hidden');
-            navOverlay.classList.add('flex');
-
-            // 2. Zoom in tighter and tilt map for a driving perspective
-            if (map) {
-                map.setZoom(19);
-                map.setTilt(65); 
-                map.panTo(state.userLocation);
-            }
-
-            // 3. Start continuous location tracking
-            if (navigator.geolocation) {
-                // Clear any existing watch just in case
-                if (state.watchId !== null) navigator.geolocation.clearWatch(state.watchId);
-                
-                state.watchId = navigator.geolocation.watchPosition(
-                    (pos) => {
-                        state.userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                        updateMarkers();
-                        
-                        // Automatically center the map on the user as they move
-                        if (map && state.isNavigating) {
-                            map.panTo(state.userLocation);
-                            // Rotate the map if the device provides heading (direction of travel)
-                            if (pos.coords.heading !== null && !isNaN(pos.coords.heading)) {
-                                map.setHeading(pos.coords.heading);
-                            }
-                        }
-                    },
-                    (err) => {
-                        console.warn("GPS tracking error:", err);
-                    },
-                    { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
-                );
-            }
-        };
-
-        window.stopLiveNavigation = function() {
-            state.isNavigating = false;
-            
-            // 1. Stop GPS tracking
-            if (state.watchId !== null) {
-                navigator.geolocation.clearWatch(state.watchId);
-                state.watchId = null;
-            }
-
-            // 2. Restore the standard UI
-            const navOverlay = document.getElementById('nav-overlay');
-            navOverlay.classList.add('hidden');
-            navOverlay.classList.remove('flex');
-
-            document.getElementById('sidebar').style.display = '';
-            
-            const floatingControls = document.getElementById('floating-controls');
-            floatingControls.style.display = 'flex';
-            setTimeout(() => { floatingControls.style.opacity = '1'; }, 50);
-
-            // 3. Reset map view to normal overview
-            if (map) {
-                map.setTilt(0);
-                map.setHeading(0); // Reset rotation
-                map.setZoom(14);
-                if (state.userLocation) map.panTo(state.userLocation);
-            }
-        };
 
         function renderPandalList() {
             const q = state.searchQuery.toLowerCase();
             const filtered = PANDALS.filter(p => p.name.toLowerCase().includes(q));
-            const listEl = document.getElementById('pandal-list');
             
             if (filtered.length === 0) {
-                listEl.innerHTML = `<div class="text-center text-gray-400 py-10">No pandals found matching "${q}".</div>`;
+                els.pandalList.innerHTML = `<div class="text-center text-gray-400 py-10">No pandals found matching "${q}".</div>`;
                 return;
             }
 
-            listEl.innerHTML = filtered.map(p => {
+            els.pandalList.innerHTML = filtered.map(p => {
                 const isSel = state.selectedPandals.has(p.id);
                 return `
                     <div onclick="togglePandal('${p.id}')" class="cursor-pointer p-4 rounded-2xl border-2 transition-all duration-300 flex items-center gap-4 ${isSel ? 'border-puja-gold bg-amber-50/50 shadow-[0_4px_15px_rgba(251,191,36,0.15)] scale-[1.01]' : 'border-transparent bg-white shadow-sm hover:shadow-md hover:bg-gray-50'}">
@@ -786,8 +653,8 @@
         function renderRouteSummary() {
             if(!state.routeInfo) return;
             
-            document.getElementById('routeDuration').textContent = state.routeInfo.duration;
-            document.getElementById('routeDistance').textContent = `(${state.routeInfo.distance})`;
+            els.routeDuration.textContent = state.routeInfo.duration;
+            els.routeDistance.textContent = `(${state.routeInfo.distance})`;
 
             let html = `
                 <div class="absolute left-[23px] top-8 bottom-8 w-1 bg-gradient-to-b from-puja-red via-puja-route to-puja-gold opacity-30 rounded-full z-0"></div>
@@ -819,146 +686,123 @@
                 `;
             });
 
-            // Added Real-Time Navigation Launcher
             html += `
-                <div class="mt-6 pt-4 border-t border-gray-100 flex flex-col gap-3">
-                    <button onclick="startLiveNavigation()" class="w-full py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-                        Start Live Navigation
-                    </button>
+                <div class="mt-6 pt-4 border-t border-gray-100">
                     <button onclick="clearRoute()" class="w-full py-4 bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 font-bold rounded-2xl transition-colors border border-gray-200">
                         Clear Route & Start Over
                     </button>
                 </div>
             `;
-            document.getElementById('route-steps').innerHTML = html;
+            els.routeSteps.innerHTML = html;
         }
 
         function updateBottomButton() {
             const count = state.selectedPandals.size;
-            const btn = document.getElementById('planRouteBtn');
-            const txt = document.getElementById('planRouteText');
-            const nav = document.getElementById('btn-icon-nav');
-            
             if (count > 0) {
-                btn.disabled = false;
-                btn.className = "w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-xl transition-all transform hover:-translate-y-1 bg-gradient-to-r from-puja-red to-puja-darkRed text-white hover:shadow-2xl";
-                txt.textContent = `Plan Route (${count} stops)`;
-                nav.classList.remove('hidden');
+                els.planRouteBtn.disabled = false;
+                els.planRouteBtn.className = "w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-xl transition-all transform hover:-translate-y-1 bg-gradient-to-r from-puja-red to-puja-darkRed text-white hover:shadow-2xl";
+                els.planRouteText.textContent = `Plan Route (${count} stops)`;
+                els.btnIconNav.classList.remove('hidden');
             } else {
-                btn.disabled = true;
-                btn.className = "w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all bg-gray-100 text-gray-400 cursor-not-allowed";
-                txt.textContent = "Select Pandals to Plan";
-                nav.classList.remove('hidden');
+                els.planRouteBtn.disabled = true;
+                els.planRouteBtn.className = "w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all bg-gray-100 text-gray-400 cursor-not-allowed";
+                els.planRouteText.textContent = "Select Pandals to Plan";
+                els.btnIconNav.classList.remove('hidden');
             }
         }
 
         function setLoadingState(isLoading) {
             state.isPlanningRoute = isLoading;
-            const btn = document.getElementById('planRouteBtn');
-            const nav = document.getElementById('btn-icon-nav');
-            const load = document.getElementById('btn-icon-load');
-            const txt = document.getElementById('planRouteText');
-            
             if(isLoading) {
-                btn.disabled = true;
-                btn.classList.add('opacity-80');
-                nav.classList.add('hidden');
-                load.classList.remove('hidden');
-                txt.textContent = "Generating Route...";
+                els.planRouteBtn.disabled = true;
+                els.planRouteBtn.classList.add('opacity-80');
+                els.btnIconNav.classList.add('hidden');
+                els.btnIconLoad.classList.remove('hidden');
+                els.planRouteText.textContent = "Generating Route...";
             } else {
                 updateBottomButton();
-                load.classList.add('hidden');
+                els.btnIconLoad.classList.add('hidden');
             }
         }
 
         function showRouteView() {
-            document.getElementById('list-view').classList.add('hidden');
-            const routeView = document.getElementById('route-view');
-            routeView.classList.remove('hidden');
-            routeView.classList.add('flex');
+            els.listView.classList.add('hidden');
+            els.routeView.classList.remove('hidden');
+            els.routeView.classList.add('flex');
         }
 
         function showListView() {
-            const routeView = document.getElementById('route-view');
-            routeView.classList.add('hidden');
-            routeView.classList.remove('flex');
-            document.getElementById('list-view').classList.remove('hidden');
+            els.routeView.classList.add('hidden');
+            els.routeView.classList.remove('flex');
+            els.listView.classList.remove('hidden');
         }
 
         function toggleMobileSheet(forceState) {
             const willOpen = forceState !== undefined ? forceState : !state.isMobileSheetOpen;
             state.isMobileSheetOpen = willOpen;
-            const sidebar = document.getElementById('sidebar');
-            const iconList = document.getElementById('icon-list');
-            const iconMap = document.getElementById('icon-map');
-            
             if (willOpen) {
-                sidebar.classList.remove('translate-y-[calc(100%-48px)]');
-                sidebar.classList.add('translate-y-0');
-                iconList.classList.add('hidden');
-                iconMap.classList.remove('hidden');
+                els.sidebar.classList.remove('translate-y-[calc(100%-48px)]');
+                els.sidebar.classList.add('translate-y-0');
+                els.iconList.classList.add('hidden');
+                els.iconMap.classList.remove('hidden');
             } else {
-                sidebar.classList.add('translate-y-[calc(100%-48px)]');
-                sidebar.classList.remove('translate-y-0');
-                iconMap.classList.add('hidden');
-                iconList.classList.remove('hidden');
+                els.sidebar.classList.add('translate-y-[calc(100%-48px)]');
+                els.sidebar.classList.remove('translate-y-0');
+                els.iconMap.classList.add('hidden');
+                els.iconList.classList.remove('hidden');
             }
         }
 
         // EVENT LISTENERS
-        document.getElementById('searchInput').addEventListener('input', (e) => {
+        els.searchInput.addEventListener('input', (e) => {
             state.searchQuery = e.target.value;
             renderPandalList();
         });
 
-        document.getElementById('togglePandals').addEventListener('click', () => {
+        els.togglePandals.addEventListener('click', () => {
             state.showPandals = !state.showPandals;
-            const btn = document.getElementById('togglePandals');
             const eye = document.getElementById('eye-off-pandals');
             if(state.showPandals) {
-                btn.classList.add('bg-red-50/80', 'text-red-600');
-                btn.classList.remove('text-gray-400', 'hover:bg-gray-50/80');
+                els.togglePandals.classList.add('bg-red-50/80', 'text-red-600');
+                els.togglePandals.classList.remove('text-gray-400', 'hover:bg-gray-50/80');
                 eye.classList.add('hidden');
             } else {
-                btn.classList.remove('bg-red-50/80', 'text-red-600');
-                btn.classList.add('text-gray-400', 'hover:bg-gray-50/80');
+                els.togglePandals.classList.remove('bg-red-50/80', 'text-red-600');
+                els.togglePandals.classList.add('text-gray-400', 'hover:bg-gray-50/80');
                 eye.classList.remove('hidden');
             }
             updateMarkers();
         });
 
-        document.getElementById('toggleWashrooms').addEventListener('click', () => {
+        els.toggleWashrooms.addEventListener('click', () => {
             state.showWashrooms = !state.showWashrooms;
-            const btn = document.getElementById('toggleWashrooms');
             const eye = document.getElementById('eye-off-washrooms');
             const icon = document.getElementById('washroom-icon');
             if(state.showWashrooms) {
-                btn.classList.add('bg-blue-50/80', 'text-blue-600');
-                btn.classList.remove('text-gray-400', 'hover:bg-gray-50/80');
+                els.toggleWashrooms.classList.add('bg-blue-50/80', 'text-blue-600');
+                els.toggleWashrooms.classList.remove('text-gray-400', 'hover:bg-gray-50/80');
                 icon.classList.remove('grayscale', 'opacity-50');
                 eye.classList.add('hidden');
             } else {
-                btn.classList.remove('bg-blue-50/80', 'text-blue-600');
-                btn.classList.add('text-gray-400', 'hover:bg-gray-50/80');
+                els.toggleWashrooms.classList.remove('bg-blue-50/80', 'text-blue-600');
+                els.toggleWashrooms.classList.add('text-gray-400', 'hover:bg-gray-50/80');
                 icon.classList.add('grayscale', 'opacity-50');
                 eye.classList.remove('hidden');
             }
             updateMarkers();
         });
 
-        document.getElementById('locateUser').addEventListener('click', requestLocation);
-        document.getElementById('planRouteBtn').addEventListener('click', planRoute);
-        document.getElementById('closeRouteBtn').addEventListener('click', showListView);
+        els.locateUser.addEventListener('click', requestLocation);
+        els.planRouteBtn.addEventListener('click', planRoute);
+        els.closeRouteBtn.addEventListener('click', showListView);
         
         // Mobile Interactions
-        document.getElementById('mobileToggleBtn').addEventListener('click', () => toggleMobileSheet());
-        const dragHandle = document.getElementById('dragHandle');
-        dragHandle.addEventListener('click', () => toggleMobileSheet());
+        els.mobileToggleBtn.addEventListener('click', () => toggleMobileSheet());
+        els.dragHandle.addEventListener('click', () => toggleMobileSheet());
         
         let touchStartY = 0;
-        dragHandle.addEventListener('touchstart', e => touchStartY = e.changedTouches[0].screenY, {passive: true});
-        dragHandle.addEventListener('touchend', e => {
+        els.dragHandle.addEventListener('touchstart', e => touchStartY = e.changedTouches[0].screenY, {passive: true});
+        els.dragHandle.addEventListener('touchend', e => {
             if (e.changedTouches[0].screenY > touchStartY + 30) toggleMobileSheet(false);
             if (e.changedTouches[0].screenY < touchStartY - 30) toggleMobileSheet(true);
         }, {passive: true});
