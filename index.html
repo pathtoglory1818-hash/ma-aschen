@@ -125,7 +125,7 @@
             </div>
 
             <!-- Floating Map Controls -->
-            <div class="absolute top-4 right-4 z-20 flex flex-col gap-3">
+            <div id="floating-controls" class="absolute top-4 right-4 z-20 flex flex-col gap-3 transition-opacity duration-300">
                 <div class="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden border border-gray-200/50 flex flex-col p-1.5">
                     <button id="togglePandals" class="p-2.5 rounded-xl transition-all duration-300 flex items-center justify-center relative group bg-red-50/80 text-red-600 shadow-sm" title="Toggle Pandals">
                         <span class="text-2xl leading-none drop-shadow-sm">🪷</span>
@@ -225,6 +225,28 @@
         </div>
     </main>
 
+    <!-- Native Live Navigation Overlay -->
+    <div id="nav-overlay" class="fixed inset-0 z-40 pointer-events-none hidden flex-col justify-between transition-opacity duration-300">
+        <!-- Top Banner -->
+        <div class="pointer-events-auto bg-green-600/95 backdrop-blur-md text-white p-4 md:p-5 m-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-green-500 max-w-2xl md:mx-auto w-[calc(100%-2rem)]">
+            <div class="animate-pulse bg-white/20 p-3 rounded-full shrink-0">
+                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+            </div>
+            <div class="flex-1">
+                <div class="text-xs font-bold text-green-200 uppercase tracking-wider mb-0.5">Live Navigation Active</div>
+                <div id="nav-instruction" class="text-base md:text-lg font-bold leading-tight">Follow the route highlighted on the map</div>
+            </div>
+        </div>
+
+        <!-- Bottom Actions -->
+        <div class="pointer-events-auto p-6 flex justify-center mb-4 md:mb-8">
+            <button onclick="stopLiveNavigation()" class="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-2xl font-bold shadow-2xl flex items-center gap-3 transition-all transform hover:scale-105 border border-red-500">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                End Navigation
+            </button>
+        </div>
+    </div>
+
     <div id="toast-container" class="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2 transition-all"></div>
 
     <script>
@@ -291,7 +313,9 @@
             userLocation: null,
             routeInfo: null,
             isPlanningRoute: false,
-            isMobileSheetOpen: false
+            isMobileSheetOpen: false,
+            watchId: null,
+            isNavigating: false
         };
 
         // --- GOOGLE MAPS OBJECTS ---
@@ -644,27 +668,82 @@
             if(map && state.userLocation) {
                 map.panTo(state.userLocation);
                 map.setZoom(13);
+                map.setTilt(0); // Reset tilt if returning from navigation
             }
         }
 
-        // --- NEW REAL-TIME NAVIGATION LAUNCHER ---
+        // --- IN-APP REAL-TIME NAVIGATION LOGIC ---
         window.startLiveNavigation = function() {
             if (!state.routeInfo || !state.userLocation) return;
-            const origin = `${state.userLocation.lat},${state.userLocation.lng}`;
-            const sequence = state.routeInfo.sequence;
-            const dest = sequence[sequence.length - 1];
-            const destination = `${dest.lat},${dest.lng}`;
+            
+            state.isNavigating = true;
 
-            let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+            // 1. Update UI for immersive navigation mode
+            document.getElementById('sidebar').style.display = 'none';
+            document.getElementById('floating-controls').style.opacity = '0';
+            setTimeout(() => { document.getElementById('floating-controls').style.display = 'none'; }, 300);
+            
+            const navOverlay = document.getElementById('nav-overlay');
+            navOverlay.classList.remove('hidden');
+            navOverlay.classList.add('flex');
 
-            // Add intermediate stops
-            if (sequence.length > 1) {
-                const waypoints = sequence.slice(0, -1).map(p => `${p.lat},${p.lng}`).join('|');
-                url += `&waypoints=${waypoints}`;
+            // 2. Zoom in and tilt map for a "driving/walking" perspective
+            if (map) {
+                map.setZoom(18);
+                map.setTilt(60); 
+                map.panTo(state.userLocation);
             }
 
-            // Launch Google Maps!
-            window.open(url, '_blank');
+            // 3. Start continuous location tracking
+            if (navigator.geolocation) {
+                // Clear any existing watch just in case
+                if (state.watchId !== null) navigator.geolocation.clearWatch(state.watchId);
+                
+                state.watchId = navigator.geolocation.watchPosition(
+                    (pos) => {
+                        state.userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        updateMarkers();
+                        
+                        // Automatically center the map on the user as they move
+                        if (map && state.isNavigating) {
+                            map.panTo(state.userLocation);
+                        }
+                    },
+                    (err) => {
+                        console.warn("GPS tracking error:", err);
+                        showToast("GPS signal lost or weak.", "error");
+                    },
+                    { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+                );
+            }
+        };
+
+        window.stopLiveNavigation = function() {
+            state.isNavigating = false;
+            
+            // 1. Stop GPS tracking
+            if (state.watchId !== null) {
+                navigator.geolocation.clearWatch(state.watchId);
+                state.watchId = null;
+            }
+
+            // 2. Restore the standard UI
+            const navOverlay = document.getElementById('nav-overlay');
+            navOverlay.classList.add('hidden');
+            navOverlay.classList.remove('flex');
+
+            document.getElementById('sidebar').style.display = '';
+            
+            const floatingControls = document.getElementById('floating-controls');
+            floatingControls.style.display = 'flex';
+            setTimeout(() => { floatingControls.style.opacity = '1'; }, 50);
+
+            // 3. Reset map view to normal overview
+            if (map) {
+                map.setTilt(0);
+                map.setZoom(14);
+                if (state.userLocation) map.panTo(state.userLocation);
+            }
         };
 
         function renderPandalList() {
